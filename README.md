@@ -4,8 +4,8 @@
 
 > A web-based platform connecting food donors with humanitarian organisations to reduce waste and fight hunger.
 
-**👨‍💻 Jann Birungi Mudondo** & **👩‍💻 Mosoti Sherly Kemunto**  
-🏫 Strathmore University — BBIT Programme | 👩‍🏫 Supervisor: Ms. Mkambane
+**👨‍💻 Jannie Birungi Mudondo** & **👩‍💻 Mosoti Sherly Kemunto**  
+🏫 Strathmore University — BBIT Programme | 👩‍🏫 Supervisor: Ms. Mkabane
 
 ---
 
@@ -31,9 +31,9 @@ This system bridges the gap between food donors — farmers, market traders, and
 
 | Layer | Technology |
 |---|---|
-| 🎨 Frontend | HTML5, CSS3, Bootstrap 5, JavaScript |
+| 🎨 Frontend | HTML, CSS, Bootstrap, JavaScript |
 | ⚙️ Backend | PHP |
-| 🗄️ Database | MySQL |
+| 🗄️ Database | Postgres |
 | 🔧 Version Control | Git / GitHub |
 
 ---
