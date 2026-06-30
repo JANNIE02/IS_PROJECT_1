@@ -47,3 +47,11 @@ CREATE TABLE deliveries (
 ALTER TABLE users 
 ADD COLUMN latitude DECIMAL(10, 8),
 ADD COLUMN longitude DECIMAL(11, 8);
+
+
+
+
+ALTER TABLE food_listings
+    ADD COLUMN food_condition VARCHAR(50),
+    ADD COLUMN urgency VARCHAR(10) DEFAULT 'medium' CHECK (urgency IN ('high', 'medium', 'low')),
+    ADD COLUMN pickup_window VARCHAR(50);

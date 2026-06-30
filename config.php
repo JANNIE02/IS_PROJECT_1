@@ -1,15 +1,13 @@
-<?php 
+<?php
+$host = "localhost";
+$port = "5432";
+$dbname = "food_redistribution";
+$user = "postgres";
+$password = "postgres";
 
-$conf['site_name'] = "Wes";
-$conf['site_url'] = "www.westonhotel.com";
-$conf['admin_email'] = "sherly.mosoti@strathmore.edu";
+$conn = pg_connect("host=$host port=$port dbname=$dbname user=$user password=$password");
 
-//site language
-$conf['language'] = "en";
-//database constants
-$conf['db_type'] = "pgsql";
-$conf['db_host'] = "localhost";
-$conf['db_port'] = "5432"; 
-$conf['db_user'] = "postgres";
-$conf['db_pass'] = "Mokoro111*";
-$conf['db_name'] = "api_groupwork";
+if (!$conn) {
+    die("Connection failed: " . pg_last_error());
+}
+?>
