@@ -1,2 +1,4 @@
 config.php
 generate_hash.php
+mail.php
+mailtest.php
