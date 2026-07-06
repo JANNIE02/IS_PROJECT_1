@@ -1,65 +1,108 @@
 <?php
+// 1. Start session and show errors
 session_start();
-require_once 'dbconnect.php';
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
-$email = $_GET['e'] ?? ($_POST['email'] ?? '');
+// 2. Include the connection
+require_once 'dbconnect.php'; 
+
+// 3. Gatekeeper
+if (!isset($_SESSION['temp_email'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$email = $_SESSION['temp_email'];
 $message = '';
 
-if($_SERVER['REQUEST_METHOD'] === 'POST'){
-    $email = trim($_POST['email'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $otp = trim($_POST['otp'] ?? '');
 
-    if(!$email || !$otp){
-        $message = "Enter email and OTP.";
+    if (empty($otp)) {
+        $message = "Please enter the OTP code.";
     } else {
-        $stmt = $conn->prepare("SELECT id, otp_code FROM users WHERE email=:email LIMIT 1");
-        $stmt->execute([':email'=>$email]);
+        // 4. Fetch the user. 
+        // NOTE: We fetch 'full_name' and 'role' NOW to avoid extra queries later.
+        $stmt = $conn->prepare("SELECT id, full_name, role, otp_code FROM users WHERE email = :email LIMIT 1");
+        $stmt->execute([':email' => $email]);
         $u = $stmt->fetch();
 
-        if($u && $u['otp_code'] == $otp){
-
-            // FIXED — Use TRUE, not 1 (PostgreSQL boolean!)
-            $update = $conn->prepare("
-                UPDATE users 
-                SET otp_verified = TRUE, otp_code = NULL 
-                WHERE id = :id
-            ");
+        // 5. Compare OTP
+        if ($u && $u['otp_code'] == $otp) {
+            
+            // 6. Mark as verified in PostgreSQL
+            $update = $conn->prepare("UPDATE users SET otp_verified = TRUE, otp_code = NULL WHERE id = :id");
             $update->execute([':id' => $u['id']]);
 
-            echo "<script>
-                    alert('Verified! You may now login.');
-                    window.location='login.php?verified=1';
-                  </script>";
-            exit;
+            // 7. SET THE LOGIN SESSION
+            $_SESSION['user_id']   = $u['id'];
+            $_SESSION['user_name'] = $u['full_name'];
+            $_SESSION['user_role'] = $u['role'];
+
+            // 8. Clear temp ticket
+            unset($_SESSION['temp_email']);
+
+            // 9. REDIRECT BASED ON ROLE
+            $role = strtolower($u['role']); // Convert to lowercase to be safe
+
+            if ($role == 'admin') {
+                header("Location: admin-dashboard.php");
+            } elseif ($role == 'donor') {
+                header("Location: donor-dashboard.php");
+            } elseif ($role == 'recipient') {
+                header("Location: recipient-dashboard.php");
+            } elseif ($role == 'rider') {
+                header("Location: rider-dashboard.php");
+            } else {
+                // If the role doesn't match any above, show an error instead of a blank page
+                die("Error: User has an unrecognized role: " . htmlspecialchars($role));
+            }
+            exit();
+
         } else {
-            $message = "Invalid OTP or email.";
+            $message = "Wrong OTP. Please check your email and try again.";
         }
     }
 }
 ?>
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Verify OTP — Food Connect</title>
-<style>
-body{font-family:Poppins, sans-serif;background:linear-gradient(135deg,#0d47a1,#42a5f5);display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#fff}
-.box{background:#fff;color:#0d47a1;padding:28px;border-radius:12px;width:380px;box-shadow:0 6px 20px rgba(0,0,0,0.15)}
-input{width:100%;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #d3e7ff}
-button{width:100%;padding:10px;background:#0d47a1;border:none;color:#fff;border-radius:8px}
-.error{color:#a00}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Verification | Food Connect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/main.css">
 </head>
-<body>
-<div class="box">
-  <h3>Verify your email</h3>
-  <?php if($message) echo "<div class='error'>".htmlspecialchars($message)."</div>"; ?>
-  <form method="POST">
-    <input type="email" name="email" placeholder="Email" required value="<?=htmlspecialchars($email)?>">
-    <input type="text" name="otp" placeholder="6-digit OTP" maxlength="6" required>
-    <button type="submit">Verify</button>
-  </form>
-  <p style="font-size:13px;color:#666">Didn't get OTP? Check spam or register again.</p>
+<body class="bg-light">
+
+<div class="container d-flex justify-content-center align-items-center min-vh-100">
+    <div class="card shadow p-4" style="width: 100%; max-width: 450px;">
+        
+        <h3 class="text-center mb-4">OTP Verification</h3>
+
+        <?php if ($message): ?>
+            <div class="alert alert-danger"><?php echo $message; ?></div>
+        <?php endif; ?>
+
+        <form method="POST" action="otp_verify.php">
+
+            <div class="mb-3">
+                <label class="form-label">Enter OTP</label>
+                <input type="text" name="otp" class="form-control" required>
+            </div>
+
+            
+
+            <button type="submit" class="btn btn-success w-100">Verify OTP</button>
+
+            <p class="text-center mt-3">Didn't get OTP? <a href="resend_otp.php">Resend</a></p>
+
+        </form>
+    </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

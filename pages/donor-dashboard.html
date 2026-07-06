@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5" />
+    <title>Donor Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+
+
+            
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+            background: #f4f7fa;
+            color: #1e293b;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 24px 28px 32px;
+        }
+
+        .app-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e9edf2;
+            margin-bottom: 28px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            background: #06392f;
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 1.7rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .logo-text span {
+            color: #06392f;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge-role {
+            background: #eef2f6;
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            background: #06392f;
+            border: none;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: #06392f;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #06392f;
+            color: #06392f;
+        }
+        .btn-outline:hover {
+            background: #06392f;
+            color: white;
+        }
+        .btn-sm {
+            padding: 4px 14px;
+            font-size: 0.8rem;
+        }
+        .btn-danger {
+            background: #b91c1c;
+        }
+        .btn-danger:hover {
+            background: #991b1b;
+        }
+        .btn-success {
+            background: #06392f;
+        }
+        .btn-success:hover {
+            background: #06392f;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            border-radius: 18px;
+            padding: 18px 20px;
+            border-left: 5px solid #051F20;
+        }
+        .stat-card .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-card {
+            background: #fafcff;
+            border-radius: 20px;
+            padding: 24px;
+            border: 1px solid #e9edf2;
+            margin: 16px 0;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid #dce2ea;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            background: white;
+        }
+        .form-group textarea {
+            min-height: 70px;
+            resize: vertical;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-container {
+                padding: 16px;
+            }
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            background: #fafcff;
+            border-radius: 18px;
+            border: 1px solid #e9edf2;
+            padding: 4px 0;
+            margin: 12px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            text-align: left;
+            padding: 14px 16px;
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        td {
+            padding: 14px 16px;
+            border-top: 1px solid #ecf1f7;
+            vertical-align: middle;
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #e9edf2;
+            color: #334155;
+        }
+        .badge-status.approved {
+            background: #dcfce7;
+            color: #06392f;
+        }
+        .badge-status.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }3
+        .badge-status.pending {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+        .badge-status.live {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .badge-status.delivered {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+        .badge-status.cancelled {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .badge-status.booked-awaiting {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .badge-status.pending-review {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .payment-sim {
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+
+        .text-muted {
+            color: #64748b;
+        }
+        .flex-between {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #94a3b8;
+            background: none;
+            border: none;
+        }
+        .modal-close:hover {
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon"><i class="fas fa-seedling"></i></div>
+                <div class="logo-text"><span>Connect</span></div>
+            </div>
+            <div class="header-actions">
+                <span class="badge-role"><i class="fas fa-user-circle"></i> Donor</span>
+                <a href="index.html" class="btn btn-outline btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-number" id="totalListings">0</div><div class="stat-label">My Listings</div></div>
+            <div class="stat-card"><div class="stat-number" id="liveListings">0</div><div class="stat-label">Live</div></div>
+            <div class="stat-card"><div class="stat-number" id="bookedListings">0</div><div class="stat-label">Booked</div></div>
+            <div class="stat-card"><div class="stat-number" id="deliveredOrders">0</div><div class="stat-label">Delivered</div></div>
+        </div>
+
+        <!-- Subscription Status -->
+        <div class="payment-sim" style="background:#dcfce7; width:100%;" id="subscriptionStatus">
+            <i class="fas fa-check-circle" style="color:#162127;"></i>
+            <strong>Subscription active</strong> — You can create listings.
+        </div>
+
+        <!-- Create Listing -->
+        <div class="flex-between">
+            <h3 class="section-title"><i class="fas fa-plus-circle"></i> Create New Listing</h3>
+        </div>
+        <div class="form-card">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>FoodType</label>
+                    <select id="cropType">
+                        <option>Maize</option><option>Tomatoes</option><option>Kale</option>
+                        <option>Beans</option><option>Potatoes</option><option>Onions</option>
+                        <option>Cabbage</option><option>Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="number" id="quantityInput" placeholder="50" style="flex:2;" />
+                        <select id="unitInput" style="flex:1;">
+                            <option>Bags</option><option>Tons</option><option>Boxes</option>
+                            <option>Bunches</option><option>Kgs</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                    <label>Food type</label>
+                    <div style="display:flex;gap:8px;">
+                        
+                     <select id="unitInput" style="flex:1;">
+                            <option>Cooked</option><option>Raw</option><option>Frozen</option>
+                            <option>Canned</option><option>Dried</option>
+                        </select>
+                    </div>
+                </div>  
+
+                
+                <div class="form-group">
+                    <label>Nearest NGO</label>
+                    <select id="ngoSelect">
+                        <option>Kibera </option>
+                        <option>Dagoretti</option>
+                        <option>Kiambu</option>
+                        <option>Ruai</option>
+                        <option>Mwiki</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Address</label>
+                <input type="text" id="farmAddress" placeholder="e.g. Off Nakuru-Eldoret Highway" />
+            </div>
+            <div class="form-group">
+                <label>Quality Photos (at least 3)</label>
+                <input type="file" multiple accept="image/*" id="photoInput" />
+            </div>
+            <div class="form-group">
+                <label>Detailed Description</label>
+                <textarea id="descriptionInput" placeholder="Freshly harvested, grade A..."></textarea>
+            </div>
+            <button class="btn" onclick="createListing()"><i class="fas fa-cloud-upload-alt"></i> Submit Listing</button>
+        </div>
+
+        <!-- My Listings -->
+        <h3 class="section-title"><i class="fas fa-list"></i> My Listings</h3>
+        <div id="listingsContainer">
+            <p class="text-muted">You have no listings yet.</p>
+        </div>
+
+        <!-- Order History -->
+        <h3 class="section-title"><i class="fas fa-truck"></i> My Order History</h3>
+        <div id="ordersContainer">
+            <p class="text-muted">No orders yet.</p>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        // Mock data for farmer (current user ID = 1)
+        const MOCK = {
+            currentFarmerId: 1,
+            listings: [
+                { id: 101, farmerId: 1, crop: 'Maize', quantity: '50 Bags', price: 2500, region: 'Nakuru',
+                    checkpoint: 'Nakuru Central', status: 'live', photos: 3, description: 'Grade A white maize' },
+                { id: 103, farmerId: 1, crop: 'Kale', quantity: '20 Bunches', price: 600, region: 'Nakuru',
+                    checkpoint: 'Nakuru Central', status: 'booked_awaiting', photos: 2, description: 'Organic kale' },
+            ],
+            orders: [
+                { id: 201, listingId: 103, buyer: 'Supermarket Ltd', total: 5400, status: 'booked_awaiting',
+                    farmerId: 1, checkpoint: 'Nakuru Central', transportFee: 800 },
+                { id: 202, listingId: 101, buyer: 'Green Grocers', total: 7800, status: 'delivered',
+                    farmerId: 1, checkpoint: 'Nakuru Central', transportFee: 1200 },
+            ],
+            subscriptionActive: true,
+            checkpoints: ['Nakuru Central', 'Kiambu Town', 'Lang\'ata Hub', 'Mombasa Road', 'Kisumu Port']
+        };
+
+        function updateDashboard() {
+            const myListings = MOCK.listings.filter(l => l.farmerId === MOCK.currentFarmerId);
+            const myOrders = MOCK.orders.filter(o => o.farmerId === MOCK.currentFarmerId);
+
+            document.getElementById('totalListings').textContent = myListings.length;
+            document.getElementById('liveListings').textContent = myListings.filter(l => l.status === 'live').length;
+            document.getElementById('bookedListings').textContent = myListings.filter(l => l.status === 'booked_awaiting').length;
+            document.getElementById('deliveredOrders').textContent = myOrders.filter(o => o.status === 'delivered').length;
+
+            // Subscription status
+            const subStatus = document.getElementById('subscriptionStatus');
+            if (MOCK.subscriptionActive) {
+                subStatus.style.background = '#dcfce7';
+                subStatus.innerHTML = `<i class="fas fa-check-circle" style="color:#166534;"></i> <strong>Subscription active</strong> — You can create listings.`;
+            } else {
+                subStatus.style.background = '#fef9c3';
+                subStatus.innerHTML = `
+                    <i class="fas fa-lock" style="color:#b45309;"></i>
+                    <strong>Subscription required</strong> — Pay KSh 500/month to unlock dashboard.
+                    <button class="btn btn-sm" onclick="showModal('Subscription Payment', 'STK Push sent to your phone. (Simulated)')"><i class="fas fa-mobile-alt"></i> Pay Now</button>
+                `;
+            }
+
+            // Listings
+            const listingsContainer = document.getElementById('listingsContainer');
+            if (myListings.length === 0) {
+                listingsContainer.innerHTML = '<p class="text-muted">You have no listings yet.</p>';
+            } else {
+                let html = `<div class="table-wrap"><table>
+                    <thead><tr><th>Crop</th><th>Qty</th><th>Price</th><th>Checkpoint</th><th>Status</th></tr></thead>
+                    <tbody>`;
+                myListings.forEach(l => {
+                    html += `<tr>
+                        <td>${l.crop}</td>
+                        <td>${l.quantity}</td>
+                        <td>KSh ${l.price}</td>
+                        <td>${l.checkpoint}</td>
+                        <td><span class="badge-status ${l.status.replace('_','-')}">${l.status.replace('_',' ')}</span></td>
+                    </tr>`;
+                });
+                html += `</tbody></table></div>`;
+                listingsContainer.innerHTML = html;
+            }
+
+            // Orders
+            const ordersContainer = document.getElementById('ordersContainer');
+            if (myOrders.length === 0) {
+                ordersContainer.innerHTML = '<p class="text-muted">No orders yet.</p>';
+            } else {
+                let html = `<div class="table-wrap"><table>
+                    <thead><tr><th>Order ID</th><th>Buyer</th><th>Status</th><th>Total</th></tr></thead>
+                    <tbody>`;
+                myOrders.forEach(o => {
+                    html += `<tr>
+                        <td>#${o.id}</td>
+                        <td>${o.buyer}</td>
+                        <td><span class="badge-status ${o.status.replace('_','-')}">${o.status.replace('_',' ')}</span></td>
+                        <td>KSh ${o.total}</td>
+                    </tr>`;
+                });
+                html += `</tbody></table></div>`;
+                ordersContainer.innerHTML = html;
+            }
+        }
+
+        function createListing() {
+            const crop = document.getElementById('cropType').value;
+            const qty = document.getElementById('quantityInput').value || '0';
+            const unit = document.getElementById('unitInput').value;
+            const price = document.getElementById('priceInput').value || '0';
+            const checkpoint = document.getElementById('checkpointSelect').value;
+            const address = document.getElementById('farmAddress').value || 'Not specified';
+            const desc = document.getElementById('descriptionInput').value || 'No description provided';
+
+            const newListing = {
+                id: Date.now(),
+                farmerId: MOCK.currentFarmerId,
+                crop: crop,
+                quantity: `${qty} ${unit}`,
+                price: parseInt(price),
+                region: checkpoint.split(' ')[0] || 'Unknown',
+                checkpoint: checkpoint,
+                status: 'pending_review',
+                photos: 3,
+                description: desc
+            };
+
+            MOCK.listings.push(newListing);
+            showModal('Success!', `
+                <div style="padding:12px 0;">
+                    <i class="fas fa-check-circle" style="color:#1e7e34; font-size:2rem; display:block; text-align:center; margin-bottom:12px;"></i>
+                    <p><strong>Your listing has been submitted for digital review.</strong></p>
+                    <p>Crop: ${crop}<br/>Quantity: ${qty} ${unit}<br/>Price: KSh ${price}<br/>Checkpoint: ${checkpoint}</p>
+                    <p class="text-muted" style="font-size:0.85rem; margin-top:12px;">An inspector will review your listing shortly.</p>
+                </div>
+            `);
+            updateDashboard();
+            // Clear form
+            document.getElementById('quantityInput').value = '';
+            document.getElementById('priceInput').value = '';
+            document.getElementById('farmAddress').value = '';
+            document.getElementById('descriptionInput').value = '';
+        }
+
+        function showModal(title, content) {
+            document.getElementById('modalBody').innerHTML = `
+                <h3 style="margin-bottom:12px;">${title}</h3>
+                <div>${content}</div>
+            `;
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        // Close modal on overlay click
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // Initialize
+        updateDashboard();
+    </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+    "require": {
+        "messagebird/php-rest-api": "^4.0",
+        "phpmailer/phpmailer": "^7.1"
+    }
+}

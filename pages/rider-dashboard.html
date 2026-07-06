@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5" />
+    <title>Rider Dashboard </title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+            background: #f4f7fa;
+            color: #1e293b;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 24px 28px 32px;
+        }
+
+        .app-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e9edf2;
+            margin-bottom: 28px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            background: #06392f;
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 1.7rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .logo-text span {
+            color: #06392f;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .badge-role {
+            background: #eef2f6;
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            background: #06392f;
+            border: none;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: #06392f;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #06392f;
+            color: #06392f;
+        }
+        .btn-outline:hover {
+            background: #06392f;
+            color: white;
+        }
+        .btn-sm {
+            padding: 4px 14px;
+            font-size: 0.8rem;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            border-radius: 18px;
+            padding: 18px 20px;
+            border-left: 5px solid #06392f ;
+        }
+        .stat-card .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            background: #fafcff;
+            border-radius: 18px;
+            border: 1px solid #e9edf2;
+            padding: 4px 0;
+            margin: 12px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            text-align: left;
+            padding: 14px 16px;
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        td {
+            padding: 14px 16px;
+            border-top: 1px solid #ecf1f7;
+            vertical-align: middle;
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #e9edf2;
+            color: #334155;
+        }
+        .badge-status.approved {
+            background: #dcfce7;
+            color: #166534 ;
+        }
+        .badge-status.delivered {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .payment-sim {
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+
+        .text-muted {
+            color: #64748b;
+        }
+        .text-small {
+            font-size: 0.8rem;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #94a3b8;
+            background: none;
+            border: none;
+        }
+        .modal-close:hover {
+            color: #1e293b;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon"><i class="fas fa-seedling"></i></div>
+                <div class="logo-text"><span></span></div>
+            </div>
+            <div class="header-actions">
+                <span class="badge-role"><i class="fas fa-user-circle"></i> Rider</span>
+                <a href="index.html" class="btn btn-outline btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-number" id="readyPickup">0</div><div class="stat-label">Ready for Pickup</div></div>
+            <div class="stat-card"><div class="stat-number" id="deliveredCount">0</div><div class="stat-label">Delivered</div></div>
+            <div class="stat-card"><div class="stat-number" id="totalEarnings">KSh 0</div><div class="stat-label">Total Earnings</div></div>
+        </div>
+
+        <!-- Pickup Queue -->
+        <h3 class="section-title"><i class="fas fa-truck"></i> Pickup & Delivery Queue</h3>
+        <div id="pickupContainer">
+            <p class="text-muted">No orders ready for pickup.</p>
+        </div>
+
+        <div class="payment-sim" style="background:#dcfce7; width:100%;">
+            <i class="fas fa-credit-card"></i> <strong>Payout:</strong> Transport fee will be sent automatically upon delivery confirmation.
+        </div>
+
+        <!-- Delivery History -->
+        <h3 class="section-title"><i class="fas fa-history"></i> Delivery History</h3>
+        <div id="historyContainer">
+            <p class="text-muted">No completed deliveries yet.</p>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        // Mock data
+        const MOCK = {
+            orders: [
+                { id: 202, listingId: 101, buyer: 'Green Grocers', total: 7800, status: 'approved_ready',
+                    farmerId: 1, checkpoint: 'Nakuru Central', transportFee: 1200 },
+                { id: 204, listingId: 104, buyer: 'Fresh Market', total: 9600, status: 'approved_ready',
+                    farmerId: 2, checkpoint: 'Kiambu Town', transportFee: 1500 },
+                { id: 203, listingId: 102, buyer: 'City Mart', total: 3200, status: 'delivered',
+                    farmerId: 2, checkpoint: 'Kiambu Town', transportFee: 600 },
+            ]
+        };
+
+        function updateDashboard() {
+            const readyOrders = MOCK.orders.filter(o => o.status === 'approved_ready');
+            const delivered = MOCK.orders.filter(o => o.status === 'delivered');
+            const totalEarnings = delivered.reduce((sum, o) => sum + (o.transportFee || 0), 0);
+
+            document.getElementById('readyPickup').textContent = readyOrders.length;
+            document.getElementById('deliveredCount').textContent = delivered.length;
+            document.getElementById('totalEarnings').textContent = `KSh ${totalEarnings.toLocaleString()}`;
+
+            // Pickup Queue
+            const pickupContainer = document.getElementById('pickupContainer');
+            if (readyOrders.length === 0) {
+                pickupContainer.innerHTML = '<p class="text-muted">No orders ready for pickup.</p>';
+            } else {
+                let html = `<div class="table-wrap"><table>
+                    <thead><tr><th>Order ID</th><th>Pickup (Checkpoint)</th><th>Delivery (Buyer)</th><th>Refrigerated</th><th>Action</th></tr></thead>
+                    <tbody>`;
+                readyOrders.forEach(o => {
+                    html += `<tr>
+                        <td>#${o.id}</td>
+                        <td>${o.checkpoint} <br/><span class="text-muted text-small">📍 0.123, 36.789</span></td>
+                        <td>${o.buyer} <br/><span class="text-muted text-small">📍 0.456, 36.890</span></td>
+                        <td><i class="fas fa-snowflake" style="color:#0284c7;"></i> Yes</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="confirmDelivery(${o.id})"><i class="fas fa-check"></i> Confirm Delivery</button>
+                        </td>
+                    </tr>`;
+                });
+                html += `</tbody></table></div>`;
+                pickupContainer.innerHTML = html;
+            }
+
+            // History
+            const historyContainer = document.getElementById('historyContainer');
+            if (delivered.length === 0) {
+                historyContainer.innerHTML = '<p class="text-muted">No completed deliveries yet.</p>';
+            } else {
+                let html = `<div class="table-wrap"><table>
+                    <thead><tr><th>Order ID</th><th>From</th><th>To</th><th>Status</th></tr></thead>
+                    <tbody>`;
+                delivered.forEach(o => {
+                    html += `<tr>
+                        <td>#${o.id}</td>
+                        <td>${o.checkpoint}</td>
+                        <td>${o.buyer}</td>
+                        <td><span class="badge-status delivered">Delivered</span></td>
+                    </tr>`;
+                });
+                html += `</tbody></table></div>`;
+                historyContainer.innerHTML = html;
+            }
+        }
+
+        function confirmDelivery(orderId) {
+            const order = MOCK.orders.find(o => o.id === orderId);
+            if (order) {
+                order.status = 'delivered';
+                const farmerShare = Math.round(order.total * 0.85);
+                const platformFee = Math.round(order.total * 0.05);
+
+                showModal('Delivery Confirmed!', `
+                    <div style="padding:12px 0;">
+                        <i class="fas fa-check-circle" style="color:#1e7e34; font-size:2rem; display:block; text-align:center; margin-bottom:12px;"></i>
+                        <p><strong>Order #${orderId} has been delivered.</strong></p>
+                        <p>Payouts triggered:</p>
+                        <ul style="margin:8px 0 0 20px;">
+                            <li>Farmer: KSh ${farmerShare}</li>
+                            <li>Transporter: KSh ${order.transportFee}</li>
+                            <li>Platform fee: KSh ${platformFee}</li>
+                        </ul>
+                        <p class="text-muted" style="font-size:0.85rem; margin-top:12px;">All payments sent via M-Pesa B2C.</p>
+                    </div>
+                `);
+                updateDashboard();
+            }
+        }
+
+        function showModal(title, content) {
+            document.getElementById('modalBody').innerHTML = `
+                <h3 style="margin-bottom:12px;">${title}</h3>
+                <div>${content}</div>
+            `;
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        updateDashboard();
+    </script>
+</body>
+</html>

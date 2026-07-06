@@ -1,6 +1,7 @@
 <?php
-include '../config.php';
 session_start();
+include '../config.php';
+require_once '../pages/mail.php';
 
 $error = "";
 
@@ -35,21 +36,58 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "Incorrect password.";
         } else {
             // Everything checks out - log them in
-            $_SESSION["user_id"] = $user["id"];
-            $_SESSION["user_name"] = $user["full_name"];
-            $_SESSION["user_role"] = $user["role"];
+            //$_SESSION["user_id"] = $user["id"];
+            //$_SESSION["user_name"] = $user["full_name"];
+            //$_SESSION["user_role"] = $user["role"];
 
             // Send them to the right dashboard based on role
-            if ($user["role"] == "admin") {
-                header("Location: admin-dashboard.php");
-            } elseif ($user["role"] == "donor") {
-                header("Location: donor-dashboard.php");
-            } elseif ($user["role"] == "recipient") {
-                header("Location: recipient-dashboard.php");
-            } elseif ($user["role"] == "rider") {
-                header("Location: rider-dashboard.php");
+            //if ($user["role"] == "admin") {
+              //  header("Location: admin-dashboard.php");
+            //} elseif ($user["role"] == "donor") {
+              //  header("Location: donor-dashboard.php");
+            //} elseif ($user["role"] == "recipient") {
+              //  header("Location: recipient-dashboard.php");
+            //} elseif ($user["role"] == "rider") {
+              //  header("Location: rider-dashboard.php");
+            //}
+            //exit();
+        //}// 1. Generate a 6-digit OTP
+            $otp = rand(100000, 999999);
+            // Set expiry for 10 minutes from now (Postgres compatible format)
+            $expiry = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+
+            // 2. Save OTP to your PostgreSQL database
+            // Note: Make sure you added these columns to your users table!
+            $update_query = "UPDATE users SET otp_code = $1, otp_expiry = $2 WHERE id = $3";
+            $update_result = pg_query_params($conn, $update_query, array($otp, $expiry, $user["id"]));
+
+            if ($update_result) {
+                // 3. Send the Email
+                require 'mail.php'; // Ensure this file has your PHPMailer settings
+                
+                $subject = "Your Login Verification Code";
+                $message = "
+                    <h3>Hello, " . htmlspecialchars($user['full_name']) . "</h3>
+                    <p>Your verification code for the Food Redistribution System is: <b>$otp</b></p>
+                    <p>This code will expire in 10 minutes.</p>
+                ";
+
+                if (sendOTPMail($user['email'], $subject, $message)) {
+                    // 4. Store user ID temporarily but NOT fully logged in yet
+                    $_SESSION["temp_user_id"] = $user["id"];
+                    $_SESSION["temp_user_role"] = $user["role"];
+                    $_SESSION["temp_user_name"] = $user["full_name"];
+                    $_SESSION["temp_email"] = $user["email"];
+                    
+                    // Redirect to OTP verification page
+                    header("Location: otp_verify.php");
+                    exit();
+                } else {
+                    $error = "Password correct, but failed to send OTP email. Please try again.";
+                }
+            } else {
+                $error = "A database error occurred. Please try again.";
             }
-            exit();
         }
     }
 }
