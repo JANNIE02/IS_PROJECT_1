@@ -40,10 +40,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
 
         // 2. Set the Full Login Session
-        $_SESSION['user_id']   = $u['id'];
-        $_SESSION['user_name'] = $u['full_name'];
-        $_SESSION['user_role'] = $u['role'];
+       // 2. Set the Full Login Session
+$_SESSION['user_id']   = $u['id'];
+$_SESSION['user_name'] = $u['full_name'];
 
+// Get any additional roles
+$extra_result = pg_query_params(
+    $conn,
+    "SELECT role FROM user_extra_roles WHERE user_id = $1",
+    array($u['id'])
+);
+
+$extra_roles = array_column(
+    pg_fetch_all($extra_result) ?: [],
+    'role'
+);
+
+// Keep primary role for backward compatibility
+$_SESSION['user_role'] = $u['role'];
+
+// Store all roles
+$_SESSION['effective_roles'] = array_unique(
+    array_merge(
+        [$u['role']],
+        $extra_roles
+    )
+);
         // 3. Delete the temporary email ticket
         unset($_SESSION['temp_email']);
 

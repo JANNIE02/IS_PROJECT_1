@@ -3,7 +3,7 @@ include '../config.php';
 session_start();
 
 // Protect page - only riders can access
-if (!isset($_SESSION["user_id"]) || $_SESSION["user_role"] != "rider") {
+if (!isset($_SESSION["user_id"]) || !in_array("rider", $_SESSION["effective_roles"] ?? [])) {
     header("Location: login.php");
     exit();
 }
@@ -332,6 +332,17 @@ function statusBadge($status) {
         <div class="header-actions">
             <span class="badge-role"><i class="fas fa-user-circle"></i> Rider</span>
             <span class="text-muted" style="font-size:0.85rem;">Welcome, <?php echo htmlspecialchars($_SESSION["user_name"]); ?></span>
+           <?php if (count($_SESSION["effective_roles"] ?? []) > 1): ?>
+    <?php if (in_array("donor", $_SESSION["effective_roles"]) && basename($_SERVER['PHP_SELF']) !== 'donor-dashboard.php'): ?>
+        <a href="donor-dashboard.php" class="btn btn-outline btn-sm"><i class="fas fa-hand-holding-heart"></i> Donor view</a>
+    <?php endif; ?>
+    <?php if (in_array("recipient", $_SESSION["effective_roles"]) && basename($_SERVER['PHP_SELF']) !== 'recipient-dashboard.php'): ?>
+        <a href="recipient-dashboard.php" class="btn btn-outline btn-sm"><i class="fas fa-hands-helping"></i> Recipient view</a>
+    <?php endif; ?>
+    <?php if (in_array("rider", $_SESSION["effective_roles"]) && basename($_SERVER['PHP_SELF']) !== 'rider-dashboard.php'): ?>
+        <a href="rider-dashboard.php" class="btn btn-outline btn-sm"><i class="fas fa-motorcycle"></i> Rider view</a>
+    <?php endif; ?>
+<?php endif; ?>
             <?php include 'profile.php'; ?>
             <a href="logout.php" class="btn btn-outline btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>

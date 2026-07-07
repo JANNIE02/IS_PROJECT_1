@@ -13,7 +13,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["user_id"])) {
     $user_id = $_POST["user_id"];
     $new_status = $_POST["new_status"];
 
-    // Get user's email and name before updating, so we can email them if approved
     $user_lookup = pg_query_params($conn,
         "SELECT full_name, email FROM users WHERE id = $1",
         array($user_id)
@@ -25,9 +24,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["user_id"])) {
         array($new_status, $user_id)
     );
 
-    // If they were just approved, send the approval email
     if ($new_status === "approved" && $user_row) {
-        require_once 'mail.php'; // mail.php lives in the same pages/ folder
+        require_once 'mail.php';
         sendApprovalMail($user_row["email"], $user_row["full_name"]);
     }
 }
@@ -40,12 +38,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["remove_listing_id"])) 
     );
 }
 
-// Get all non-admin users
+// Handle extra-roles grant/revoke
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["update_extra_roles_user_id"])) {
+    $target_user_id = $_POST["update_extra_roles_user_id"];
+    $new_roles = $_POST["extra_roles"] ?? [];
+
+    pg_query_params($conn, "DELETE FROM user_extra_roles WHERE user_id = $1", array($target_user_id));
+    foreach ($new_roles as $r) {
+        if (in_array($r, ['donor', 'recipient', 'rider'])) {
+            pg_query_params($conn,
+                "INSERT INTO user_extra_roles (user_id, role, granted_by) VALUES ($1, $2, $3)",
+                array($target_user_id, $r, $_SESSION["user_id"])
+            );
+        }
+    }
+}
+
+// Get all non-admin users, along with any extra roles granted to them
 $users_result = pg_query($conn,
-    "SELECT id, full_name, email, role, location, status, created_at 
-     FROM users 
-     WHERE role != 'admin' 
-     ORDER BY created_at DESC"
+    "SELECT u.id, u.full_name, u.email, u.role, u.location, u.status, u.created_at, u.verification_doc,
+            COALESCE(ARRAY_AGG(er.role) FILTER (WHERE er.role IS NOT NULL), '{}') AS extra_roles
+     FROM users u
+     LEFT JOIN user_extra_roles er ON er.user_id = u.id
+     WHERE u.role != 'admin'
+     GROUP BY u.id
+     ORDER BY u.created_at DESC"
 );
 $users = pg_fetch_all($users_result) ?: [];
 
@@ -92,15 +109,18 @@ $claims_result = pg_query($conn,
 );
 $claims = pg_fetch_all($claims_result) ?: [];
 
-// Impact analytics queries
+// ============ IMPACT ANALYTICS QUERIES ============
+
 // Total kg of food rescued (collected listings only)
+// Any unit not explicitly listed falls back to 0.25kg (matches disclaimer: pieces/portions/packs ≈ 0.25kg)
 $kg_result = pg_query($conn,
     "SELECT COALESCE(SUM(
-        CASE WHEN unit IN ('kg', 'Kg') THEN quantity
+        CASE WHEN unit IN ('kg', 'Kg', 'KG') THEN quantity
              WHEN unit IN ('bags', 'Bags') THEN quantity * 50
              WHEN unit IN ('boxes', 'Boxes') THEN quantity * 10
-             WHEN unit IN ('litres', 'Litres') THEN quantity
-             ELSE quantity
+             WHEN unit IN ('litres', 'Litres', 'liters', 'Liters') THEN quantity
+             WHEN unit IN ('pieces', 'Pieces', 'portions', 'Portions', 'packs', 'Packs', 'pcs') THEN quantity * 0.25
+             ELSE quantity * 0.25
         END
     ), 0) AS total_kg
      FROM food_listings WHERE status = 'collected'"
@@ -134,9 +154,22 @@ $top_donors_result = pg_query($conn,
 );
 $top_donors = pg_fetch_all($top_donors_result) ?: [];
 
-// Monthly donation trend (last 6 months)
+// Collected listings with no matching completed delivery (direct pickups / skipped rider step)
+$recon_result = pg_query($conn,
+    "SELECT COUNT(DISTINCT food_listings.id) AS cnt
+     FROM food_listings
+     LEFT JOIN claims ON claims.listing_id = food_listings.id
+     LEFT JOIN deliveries ON deliveries.claim_id = claims.id
+     WHERE food_listings.status = 'collected'
+       AND (deliveries.status IS DISTINCT FROM 'delivered')"
+);
+$recon_row = pg_fetch_assoc($recon_result);
+$collected_without_delivery = (int)($recon_row["cnt"] ?? 0);
+
+// Monthly donation trend (last 6 months), zero-filled so quiet months still show a bar
 $trend_result = pg_query($conn,
     "SELECT TO_CHAR(created_at, 'Mon YYYY') AS month,
+            DATE_TRUNC('month', created_at) AS month_start,
             COUNT(*) AS listings,
             COUNT(*) FILTER (WHERE status = 'collected') AS collected
      FROM food_listings
@@ -144,7 +177,32 @@ $trend_result = pg_query($conn,
      GROUP BY TO_CHAR(created_at, 'Mon YYYY'), DATE_TRUNC('month', created_at)
      ORDER BY DATE_TRUNC('month', created_at) ASC"
 );
-$trend = pg_fetch_all($trend_result) ?: [];
+$trend_raw = pg_fetch_all($trend_result) ?: [];
+
+$trend_by_key = [];
+foreach ($trend_raw as $row) {
+    $key = date('Y-m', strtotime($row['month_start']));
+    $trend_by_key[$key] = $row;
+}
+
+$trend = [];
+for ($i = 5; $i >= 0; $i--) {
+    $ts = strtotime("-$i months", strtotime(date('Y-m-01')));
+    $key = date('Y-m', $ts);
+    if (isset($trend_by_key[$key])) {
+        $trend[] = [
+            'month'     => $trend_by_key[$key]['month'],
+            'listings'  => (int)$trend_by_key[$key]['listings'],
+            'collected' => (int)$trend_by_key[$key]['collected'],
+        ];
+    } else {
+        $trend[] = [
+            'month'     => date('M Y', $ts),
+            'listings'  => 0,
+            'collected' => 0,
+        ];
+    }
+}
 
 // Feedback submissions
 $feedback_result = pg_query($conn,
@@ -201,6 +259,12 @@ function deliveryStatusBadge($s) {
         'delivered' => 'badge-delivered'
     ];
     return '<span class="badge ' . ($map[$s] ?? 'badge-grey') . '">' . ucfirst(str_replace('_', ' ', $s)) . '</span>';
+}
+
+// Parse a Postgres text[] array literal like {donor,rider} into a PHP array
+function parsePgArray($pgArray) {
+    $pgArray = trim($pgArray, '{}');
+    return $pgArray === '' ? [] : explode(',', $pgArray);
 }
 ?>
 <!DOCTYPE html>
@@ -286,7 +350,6 @@ function deliveryStatusBadge($s) {
         .btn-warning { background: #b45309; border: none; color: white; }
         .btn-warning:hover { background: #92400e; }
 
-        /* Stats */
         .stats-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -302,7 +365,6 @@ function deliveryStatusBadge($s) {
         .stat-card .stat-number { font-size: 2rem; font-weight: 700; line-height: 1.2; }
         .stat-card .stat-label { font-size: 0.85rem; color: #475569; }
 
-        /* Tabs */
         .tabs {
             display: flex;
             gap: 8px;
@@ -333,7 +395,6 @@ function deliveryStatusBadge($s) {
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
 
-        /* Section title */
         .section-title {
             font-size: 1.15rem;
             font-weight: 600;
@@ -341,7 +402,6 @@ function deliveryStatusBadge($s) {
             display: flex; align-items: center; gap: 10px;
         }
 
-        /* Table */
         .table-wrap {
             overflow-x: auto;
             background: #fafcff;
@@ -364,7 +424,6 @@ function deliveryStatusBadge($s) {
             vertical-align: middle;
         }
 
-        /* Badges */
         .badge {
             display: inline-block;
             padding: 4px 12px;
@@ -391,6 +450,7 @@ function deliveryStatusBadge($s) {
             font-weight: 600;
             background: #e0e7ff;
             color: #3730a3;
+            margin: 2px 4px 2px 0;
         }
         .role-tag.donor     { background: #dcfce7; color: #166534; }
         .role-tag.recipient { background: #dbeafe; color: #1e40af; }
@@ -398,7 +458,24 @@ function deliveryStatusBadge($s) {
         .role-tag.admin     { background: #ede9fe; color: #5b21b6; }
         .role-tag.visitor   { background: #e9edf2; color: #475569; }
 
-        .action-group { display: flex; gap: 6px; flex-wrap: wrap; }
+        .action-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+        .extra-roles-form {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed #e9edf2;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .extra-roles-form label {
+            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #475569;
+        }
 
         .empty-state {
             text-align: center;
@@ -408,7 +485,6 @@ function deliveryStatusBadge($s) {
         .empty-state i { font-size: 2.5rem; margin-bottom: 12px; display: block; color: #cbd5e1; }
         .empty-state p { font-size: 0.95rem; }
 
-        /* Impact analytics */
         .impact-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -446,15 +522,53 @@ function deliveryStatusBadge($s) {
             gap: 12px; margin-bottom: 14px;
         }
 
+        /* --- Charts --- */
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1.4fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 800px) { .chart-row { grid-template-columns: 1fr; } }
+
+        .chart-card {
+            background: #fafcff;
+            border: 1px solid #e9edf2;
+            border-radius: 18px;
+            padding: 20px;
+        }
+        .chart-card h4 { margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+        .donut-legend { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+        .donut-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+        .bar-chart { display: flex; align-items: flex-end; gap: 14px; height: 180px; padding: 10px 4px 0; }
+        .bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .bar-pair { display: flex; align-items: flex-end; gap: 3px; height: 140px; }
+        .bar { width: 14px; border-radius: 4px 4px 0 0; }
+        .bar-listings { background: #a5b4fc; }
+        .bar-collected { background: #06392f; }
+        .bar-month-label { font-size: 0.72rem; color: #64748b; }
+
         @media (max-width: 600px) {
             .dashboard-container { padding: 16px; }
+        }
+
+        /* --- Print mode: force-show only the Impact tab --- */
+        @media print {
+            body { background: white; padding: 0; }
+            .dashboard-container { box-shadow: none; border-radius: 0; padding: 0; max-width: 100%; }
+            .app-header .header-actions, .tabs, .stats-row, .btn, .action-group, form { display: none !important; }
+            .tab-panel { display: none !important; }
+            #tab-impact.tab-panel { display: block !important; }
+            .impact-stats, .chart-row, .impact-grid { break-inside: avoid; }
         }
     </style>
 </head>
 <body>
 <div class="dashboard-container">
 
-    <!-- Header -->
     <header class="app-header">
         <div class="logo-area">
             <div class="logo-icon"><i class="fas fa-seedling"></i></div>
@@ -467,7 +581,6 @@ function deliveryStatusBadge($s) {
         </div>
     </header>
 
-    <!-- Stats -->
     <div class="stats-row">
         <div class="stat-card">
             <div class="stat-number"><?php echo $total_users; ?></div>
@@ -495,7 +608,6 @@ function deliveryStatusBadge($s) {
         </div>
     </div>
 
-    <!-- Tabs -->
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('users', this)">
             <i class="fas fa-users"></i> Users
@@ -533,22 +645,36 @@ function deliveryStatusBadge($s) {
                     <thead>
                         <tr>
                             <th>#</th><th>Full name</th><th>Email</th><th>Role</th>
-                            <th>Location</th><th>Registered</th><th>Status</th><th>Action</th>
+                            <th>Location</th><th>Registered</th><th>Document</th><th>Status</th><th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($users as $row): ?>
+                        <?php foreach ($users as $row):
+                            $extra_roles = parsePgArray($row["extra_roles"] ?? '{}');
+                        ?>
                             <tr>
                                 <td class="text-muted" style="font-size:0.82rem;"><?php echo $row["id"]; ?></td>
                                 <td><strong><?php echo htmlspecialchars($row["full_name"]); ?></strong></td>
                                 <td class="text-muted" style="font-size:0.85rem;"><?php echo htmlspecialchars($row["email"]); ?></td>
                                 <td>
                                     <span class="role-tag <?php echo strtolower($row['role']); ?>">
-                                        <?php echo ucfirst($row["role"]); ?>
+                                        <?php echo ucfirst($row["role"]); ?> (primary)
                                     </span>
+                                    <?php foreach ($extra_roles as $r): ?>
+                                        <span class="role-tag <?php echo strtolower($r); ?>"><?php echo ucfirst($r); ?></span>
+                                    <?php endforeach; ?>
                                 </td>
                                 <td style="font-size:0.85rem;"><?php echo htmlspecialchars($row["location"] ?? '—'); ?></td>
                                 <td style="font-size:0.85rem;"><?php echo date("d M Y", strtotime($row["created_at"])); ?></td>
+                                <td>
+                                    <?php if (!empty($row["verification_doc"])): ?>
+                                        <a href="<?php echo htmlspecialchars($row["verification_doc"]); ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline">
+                                            <i class="fas fa-file-lines"></i> View
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-muted" style="font-size:0.8rem;">None</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php if ($row["status"] === "approved"): ?>
                                         <span class="badge badge-approved">Approved</span>
@@ -585,6 +711,20 @@ function deliveryStatusBadge($s) {
                                             </form>
                                         <?php endif; ?>
                                     </div>
+
+                                    <form method="POST" action="admin-dashboard.php" class="extra-roles-form">
+                                        <input type="hidden" name="update_extra_roles_user_id" value="<?php echo $row['id']; ?>">
+                                        <?php foreach (['donor', 'recipient', 'rider'] as $roleOption):
+                                            if ($roleOption === $row['role']) continue; // skip their primary role, already have it
+                                            $checked = in_array($roleOption, $extra_roles) ? 'checked' : '';
+                                        ?>
+                                            <label>
+                                                <input type="checkbox" name="extra_roles[]" value="<?php echo $roleOption; ?>" <?php echo $checked; ?>>
+                                                <?php echo ucfirst($roleOption); ?>
+                                            </label>
+                                        <?php endforeach; ?>
+                                        <button type="submit" class="btn btn-sm btn-outline">Save roles</button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -689,43 +829,94 @@ function deliveryStatusBadge($s) {
     <!-- TAB: Impact Analytics -->
     <div class="tab-panel" id="tab-impact">
 
-        <!-- Impact stat cards -->
-        <div class="impact-stats">
-            <div class="impact-card impact-green">
-                <i class="fas fa-weight-hanging"></i>
-                <div class="impact-number"><?php echo number_format($total_kg, 1); ?> kg</div>
-                <div class="impact-label">Food rescued</div>
+        <?php
+        // Chart data prep
+        $role_total = array_sum($role_counts) ?: 1;
+        $role_colors = ['donor' => '#166534', 'recipient' => '#1e40af', 'rider' => '#854d0e'];
+        $role_labels = ['donor' => 'Donors', 'recipient' => 'Recipients', 'rider' => 'Riders'];
+
+        $circumference = 2 * M_PI * 70;
+        $offset = 0;
+        $donut_segments = [];
+        foreach ($role_counts as $role => $count) {
+            $pct = $count / $role_total;
+            $dash = $pct * $circumference;
+            $donut_segments[] = ['color' => $role_colors[$role], 'dash' => $dash, 'offset' => $offset];
+            $offset += $dash;
+        }
+
+        $trend_max = 1;
+        foreach ($trend as $t) { $trend_max = max($trend_max, $t['listings']); }
+        ?>
+
+        <div class="flex-between">
+            <h4 class="section-title" style="margin:0;"><i class="fas fa-print"></i> Printable summary</h4>
+            <button class="btn btn-sm" onclick="window.print()">
+                <i class="fas fa-print"></i> Print report
+            </button>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-card">
+                <h4><i class="fas fa-chart-pie"></i> Active users by role</h4>
+                <?php if ($role_total <= 0): ?>
+                    <p class="text-muted" style="font-size:0.85rem;">No approved users yet.</p>
+                <?php else: ?>
+                    <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
+                        <svg width="160" height="160" viewBox="0 0 160 160">
+                            <circle cx="80" cy="80" r="70" fill="none" stroke="#e9edf2" stroke-width="20" />
+                            <?php foreach ($donut_segments as $seg): ?>
+                                <circle cx="80" cy="80" r="70" fill="none"
+                                    stroke="<?php echo $seg['color']; ?>"
+                                    stroke-width="20"
+                                    stroke-dasharray="<?php echo round($seg['dash'], 1); ?> <?php echo round($circumference, 1); ?>"
+                                    stroke-dashoffset="<?php echo round(-$seg['offset'], 1); ?>"
+                                    transform="rotate(-90 80 80)" />
+                            <?php endforeach; ?>
+                            <text x="80" y="76" text-anchor="middle" font-size="22" font-weight="700" fill="#1e293b"><?php echo $role_total; ?></text>
+                            <text x="80" y="94" text-anchor="middle" font-size="11" fill="#64748b">active users</text>
+                        </svg>
+                        <div class="donut-legend">
+                            <?php foreach ($role_counts as $role => $count): ?>
+                                <div class="donut-legend-item">
+                                    <span class="legend-dot" style="background:<?php echo $role_colors[$role]; ?>;"></span>
+                                    <?php echo $role_labels[$role]; ?>: <strong><?php echo $count; ?></strong>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
-            <div class="impact-card impact-blue">
-                <i class="fas fa-utensils"></i>
-                <div class="impact-number"><?php echo number_format($total_meals); ?></div>
-                <div class="impact-label">Estimated meals provided</div>
-            </div>
-            <div class="impact-card impact-purple">
-                <i class="fas fa-hand-holding-heart"></i>
-                <div class="impact-number"><?php echo $role_counts["donor"]; ?></div>
-                <div class="impact-label">Active donors</div>
-            </div>
-            <div class="impact-card impact-yellow">
-                <i class="fas fa-users"></i>
-                <div class="impact-number"><?php echo $role_counts["recipient"]; ?></div>
-                <div class="impact-label">Active recipients</div>
-            </div>
-            <div class="impact-card impact-orange">
-                <i class="fas fa-motorcycle"></i>
-                <div class="impact-number"><?php echo $role_counts["rider"]; ?></div>
-                <div class="impact-label">Active riders</div>
-            </div>
-            <div class="impact-card impact-teal">
-                <i class="fas fa-truck"></i>
-                <div class="impact-number"><?php echo $delivered_count; ?></div>
-                <div class="impact-label">Deliveries completed</div>
+
+            <div class="chart-card">
+                <h4><i class="fas fa-chart-bar"></i> Listings vs. collected, last 6 months</h4>
+                <?php if (count($trend) === 0): ?>
+                    <p class="text-muted" style="font-size:0.85rem;">Not enough data yet.</p>
+                <?php else: ?>
+                    <div class="bar-chart">
+                        <?php foreach ($trend as $t):
+                            $h_listings = round(($t['listings'] / $trend_max) * 140);
+                            $h_collected = round(($t['collected'] / $trend_max) * 140);
+                        ?>
+                            <div class="bar-group">
+                                <div class="bar-pair">
+                                    <div class="bar bar-listings" style="height:<?php echo $h_listings; ?>px;" title="Listings: <?php echo $t['listings']; ?>"></div>
+                                    <div class="bar bar-collected" style="height:<?php echo $h_collected; ?>px;" title="Collected: <?php echo $t['collected']; ?>"></div>
+                                </div>
+                                <div class="bar-month-label"><?php echo $t['month']; ?></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="donut-legend" style="flex-direction:row; gap:20px; margin-top:16px;">
+                        <div class="donut-legend-item"><span class="legend-dot" style="background:#a5b4fc;"></span> Listings added</div>
+                        <div class="donut-legend-item"><span class="legend-dot" style="background:#06392f;"></span> Collected</div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
         <div class="impact-grid">
 
-            <!-- Top donors -->
             <div>
                 <h4 class="section-title" style="margin-top:0;"><i class="fas fa-star"></i> Top donors by deliveries</h4>
                 <?php if (count($top_donors) === 0): ?>
@@ -759,7 +950,6 @@ function deliveryStatusBadge($s) {
                 <?php endif; ?>
             </div>
 
-            <!-- Monthly trend -->
             <div>
                 <h4 class="section-title" style="margin-top:0;"><i class="fas fa-calendar-alt"></i> Monthly trend (last 6 months)</h4>
                 <?php if (count($trend) === 0): ?>
@@ -793,7 +983,11 @@ function deliveryStatusBadge($s) {
 
         <p class="text-muted" style="font-size:0.8rem; margin-top:18px;">
             <i class="fas fa-info-circle"></i>
-            Meal estimate based on 4 portions per kg. Kg equivalents used: 1 bag = 50kg, 1 box = 10kg, portions/pieces counted as 0.25kg each.
+            Meal estimate based on 4 portions per kg. Kg equivalents used: 1 bag = 50kg, 1 box = 10kg, pieces/portions/packs ≈ 0.25kg each.
+            <?php if ($collected_without_delivery > 0): ?>
+                <br><i class="fas fa-circle-info"></i>
+                <?php echo $collected_without_delivery; ?> of the collected listings above were picked up directly and don't have a matching rider delivery record — that's why "Food rescued" and "Deliveries completed" won't match exactly.
+            <?php endif; ?>
         </p>
 
     </div>
@@ -838,11 +1032,8 @@ function deliveryStatusBadge($s) {
 
 <script>
 function switchTab(tabName, btn) {
-    // Hide all panels
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    // Deactivate all tab buttons
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    // Show selected panel and activate button
     document.getElementById('tab-' + tabName).classList.add('active');
     btn.classList.add('active');
 }

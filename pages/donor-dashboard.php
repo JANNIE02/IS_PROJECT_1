@@ -3,7 +3,7 @@ include '../config.php';
 session_start();
 
 // Protect page - only donors can access
-if (!isset($_SESSION["user_id"]) || $_SESSION["user_role"] != "donor") {
+if (!isset($_SESSION["user_id"]) || !in_array("donor", $_SESSION["effective_roles"] ?? [])) {
     header("Location: login.php");
     exit();
 }
@@ -30,12 +30,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["food_name"])) {
     $food_condition = $_POST["food_condition"];
     $urgency = $_POST["urgency"];
     $pickup_window = $_POST["pickup_window"];
+    $zone_id = $_POST["zone_id"];
     $donor_id = $_SESSION["user_id"];
 
     pg_query_params($conn,
-        "INSERT INTO food_listings (donor_id, food_name, quantity, unit, expiry_date, location, notes, food_condition, urgency, pickup_window)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-        array($donor_id, $food_name, $quantity, $unit, $expiry_date, $location, $notes, $food_condition, $urgency, $pickup_window)
+        "INSERT INTO food_listings (donor_id, food_name, quantity, unit, expiry_date, location, notes, food_condition, urgency, pickup_window, zone_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        array($donor_id, $food_name, $quantity, $unit, $expiry_date, $location, $notes, $food_condition, $urgency, $pickup_window, $zone_id)
     );
 }
 
@@ -47,9 +48,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["cancel_listing_id"])) 
     );
 }
 
-// Get this donor's listings
+// Get list of drop-off zones (admin-managed)
+$zones_result = pg_query($conn, "SELECT id, name, description FROM zones ORDER BY name ASC");
+$zones = pg_fetch_all($zones_result) ?: [];
+
+// Get this donor's listings, with zone name attached
 $listings_result = pg_query_params($conn,
-    "SELECT * FROM food_listings WHERE donor_id = $1 ORDER BY created_at DESC",
+    "SELECT fl.*, z.name AS zone_name
+     FROM food_listings fl
+     LEFT JOIN zones z ON fl.zone_id = z.id
+     WHERE fl.donor_id = $1
+     ORDER BY fl.created_at DESC",
     array($_SESSION["user_id"])
 );
 $listings = pg_fetch_all($listings_result) ?: [];
@@ -226,6 +235,11 @@ function pickupLabel($p) {
             font-family: inherit;
         }
         .form-group textarea { min-height: 70px; resize: vertical; }
+        .form-group .field-hint {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .input-combo { display: flex; gap: 8px; }
         .input-combo input { flex: 2; }
@@ -280,6 +294,19 @@ function pickupLabel($p) {
         .badge-cancelled { background: #f1f5f9; color: #475569; }
         .badge-expired   { background: #fee2e2; color: #991b1b; }
 
+        .zone-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #ecfdf5;
+            color: #06392f;
+            border: 1px solid #bbf0da;
+        }
+
         .urgency-tag {
             display: inline-flex;
             align-items: center;
@@ -327,6 +354,17 @@ function pickupLabel($p) {
         <div class="header-actions">
             <span class="badge-role"><i class="fas fa-hand-holding-heart"></i> Donor</span>
             <span class="text-muted" style="font-size:0.85rem;">Welcome, <?php echo htmlspecialchars($_SESSION["user_name"]); ?></span>
+           <?php if (count($_SESSION["effective_roles"] ?? []) > 1): ?>
+    <?php if (in_array("donor", $_SESSION["effective_roles"]) && basename($_SERVER['PHP_SELF']) !== 'donor-dashboard.php'): ?>
+        <a href="donor-dashboard.php" class="btn btn-outline btn-sm"><i class="fas fa-hand-holding-heart"></i> Donor view</a>
+    <?php endif; ?>
+    <?php if (in_array("recipient", $_SESSION["effective_roles"]) && basename($_SERVER['PHP_SELF']) !== 'recipient-dashboard.php'): ?>
+        <a href="recipient-dashboard.php" class="btn btn-outline btn-sm"><i class="fas fa-hands-helping"></i> Recipient view</a>
+    <?php endif; ?>
+    <?php if (in_array("rider", $_SESSION["effective_roles"]) && basename($_SERVER['PHP_SELF']) !== 'rider-dashboard.php'): ?>
+        <a href="rider-dashboard.php" class="btn btn-outline btn-sm"><i class="fas fa-motorcycle"></i> Rider view</a>
+    <?php endif; ?>
+<?php endif; ?>
             <?php include 'profile.php'; ?>
             <a href="logout.php" class="btn btn-outline btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
@@ -356,12 +394,12 @@ function pickupLabel($p) {
     <?php if ($loc_row["latitude"] && $loc_row["longitude"]): ?>
         <div class="banner banner-success">
             <i class="fas fa-map-marker-alt"></i>
-            <span>Exact pickup location is set — riders can find you on Google Maps. Coordinates: <?php echo $loc_row["latitude"]; ?>, <?php echo $loc_row["longitude"]; ?></span>
+            <span>Exact location is set. Coordinates: <?php echo $loc_row["latitude"]; ?>, <?php echo $loc_row["longitude"]; ?></span>
         </div>
     <?php else: ?>
         <div class="banner banner-warning">
             <i class="fas fa-exclamation-triangle"></i>
-            <span>No exact location set yet. Riders will use your text address instead.</span>
+            <span>No exact location set yet.</span>
             <button class="btn btn-sm" onclick="getLocation()"><i class="fas fa-crosshairs"></i> Detect now</button>
         </div>
     <?php endif; ?>
@@ -419,15 +457,14 @@ function pickupLabel($p) {
 
             <div class="form-row">
                 <div class="form-group">
-                    <label>Pickup window</label>
-                    <select name="pickup_window" required>
-                        <option value="">When can a rider collect?</option>
-                        <option value="within_1h">Within 1 hour</option>
-                        <option value="within_2h">Within 2 hours</option>
-                        <option value="today">Today (flexible)</option>
-                        <option value="tomorrow_am">Tomorrow morning</option>
-                        <option value="tomorrow_pm">Tomorrow afternoon</option>
+                    <label>Drop-off zone</label>
+                    <select name="zone_id" required>
+                        <option value="">Where will you bring this?</option>
+                        <?php foreach ($zones as $zone): ?>
+                            <option value="<?php echo $zone['id']; ?>"><?php echo htmlspecialchars($zone['name']); ?></option>
+                        <?php endforeach; ?>
                     </select>
+                    <div class="field-hint">Bring the food to this zone yourself — a rider will collect it from there and deliver it to the recipient.</div>
                 </div>
                 <div class="form-group">
                     <label>Expiry date</label>
@@ -436,8 +473,20 @@ function pickupLabel($p) {
             </div>
 
             <div class="form-group">
-                <label>Pickup location</label>
-                <input type="text" name="location" placeholder="e.g. Westlands, Nairobi" required />
+                <label>Pickup window</label>
+                <select name="pickup_window" required>
+                    <option value="">When will you drop this off?</option>
+                    <option value="within_1h">Within 1 hour</option>
+                    <option value="within_2h">Within 2 hours</option>
+                    <option value="today">Today (flexible)</option>
+                    <option value="tomorrow_am">Tomorrow morning</option>
+                    <option value="tomorrow_pm">Tomorrow afternoon</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Notes for the rider (optional)</label>
+                <input type="text" name="location" placeholder="e.g. any detail to help find it at the zone" />
             </div>
 
             <div class="form-group">
@@ -466,7 +515,7 @@ function pickupLabel($p) {
                 <thead>
                     <tr>
                         <th>Food</th><th>Quantity</th><th>Condition</th>
-                        <th>Urgency</th><th>Pickup window</th><th>Location</th>
+                        <th>Urgency</th><th>Drop-off zone</th><th>Pickup window</th>
                         <th>Status</th><th>Listed</th><th></th>
                     </tr>
                 </thead>
@@ -480,8 +529,14 @@ function pickupLabel($p) {
                                 <?php $u = $row["urgency"] ?? 'medium'; ?>
                                 <span class="urgency-tag urgency-<?php echo $u; ?>"><?php echo ucfirst($u); ?></span>
                             </td>
+                            <td>
+                                <?php if ($row["zone_name"]): ?>
+                                    <span class="zone-tag"><i class="fas fa-map-pin"></i> <?php echo htmlspecialchars($row["zone_name"]); ?></span>
+                                <?php else: ?>
+                                    <span class="text-muted" style="font-size:0.8rem;">No zone set</span>
+                                <?php endif; ?>
+                            </td>
                             <td style="font-size:0.85rem;"><?php echo htmlspecialchars(pickupLabel($row["pickup_window"])); ?></td>
-                            <td style="font-size:0.85rem;"><?php echo htmlspecialchars($row["location"]); ?></td>
                             <td><span class="badge badge-<?php echo statusBadgeClass($row["status"]); ?>"><?php echo ucfirst($row["status"]); ?></span></td>
                             <td style="font-size:0.85rem;"><?php echo date("d M Y", strtotime($row["created_at"])); ?></td>
                             <td>
@@ -509,17 +564,37 @@ function pickupLabel($p) {
 
 <script>
 function getLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-            document.getElementById("latitude").value = position.coords.latitude;
-            document.getElementById("longitude").value = position.coords.longitude;
-            document.getElementById("location-form").submit();
-        }, function() {
-            alert("Could not get location. Please allow location access in your browser.");
-        });
-    } else {
+    if (!navigator.geolocation) {
         alert("Your browser does not support location detection.");
+        return;
     }
+
+    if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+        alert("Location detection needs HTTPS. You're on " + location.protocol + "//" + location.hostname + " — try accessing the site via https:// or via localhost instead.");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(function(position) {
+        document.getElementById("latitude").value = position.coords.latitude;
+        document.getElementById("longitude").value = position.coords.longitude;
+        document.getElementById("location-form").submit();
+    }, function(error) {
+        let msg;
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                msg = "Location access was denied. Check your browser's site settings and allow location for this page.";
+                break;
+            case error.POSITION_UNAVAILABLE:
+                msg = "Location information is unavailable right now.";
+                break;
+            case error.TIMEOUT:
+                msg = "The location request timed out. Try again.";
+                break;
+            default:
+                msg = "Unknown error: " + error.message;
+        }
+        alert(msg);
+    }, { timeout: 10000 });
 }
 </script>
 </body>

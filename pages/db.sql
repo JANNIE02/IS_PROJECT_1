@@ -72,3 +72,14 @@ CREATE TABLE feedback (
     message TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE user_extra_roles (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('donor','recipient','rider')),
+    granted_by INTEGER REFERENCES users(id),  -- which admin granted it
+    granted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, role)
+);
+
+ALTER TABLE users ADD COLUMN verification_doc TEXT;

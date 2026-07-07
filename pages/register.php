@@ -24,20 +24,69 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (pg_num_rows($check) > 0) {
             $error = "An account with that email already exists.";
         } else {
-            // Hash the password
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            
-            // Insert into database
-            $result = pg_query_params($conn, 
-                "INSERT INTO users (full_name, email, password_hash, role, location) 
-                 VALUES ($1, $2, $3, $4, $5)",
-                array($full_name, $email, $password_hash, $role, $location)
-            );
 
-            if ($result) {
-                $success = "Account created successfully! Wait for admin approval before logging in.";
-            } else {
-                $error = "Something went wrong. Please try again.";
+            // ---- Handle supporting document upload (optional) ----
+            $doc_path = null;
+
+            if (isset($_FILES["verification_doc"]) && $_FILES["verification_doc"]["error"] !== UPLOAD_ERR_NO_FILE) {
+
+                $file = $_FILES["verification_doc"];
+
+                if ($file["error"] !== UPLOAD_ERR_OK) {
+                    $error = "There was a problem uploading your document. Please try again.";
+                } else {
+                    $allowed_ext = ["pdf", "jpg", "jpeg", "png"];
+                    $allowed_mime = [
+                        "application/pdf",
+                        "image/jpeg",
+                        "image/png"
+                    ];
+                    $max_size = 5 * 1024 * 1024; // 5MB
+
+                    $ext = strtolower(pathinfo($file["name"], PATHINFO_EXTENSION));
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    $mime = finfo_file($finfo, $file["tmp_name"]);
+                    finfo_close($finfo);
+
+                    if (!in_array($ext, $allowed_ext) || !in_array($mime, $allowed_mime)) {
+                        $error = "Supporting document must be a PDF, JPG, or PNG file.";
+                    } elseif ($file["size"] > $max_size) {
+                        $error = "Supporting document must be smaller than 5MB.";
+                    } else {
+                        $upload_dir = __DIR__ . "/uploads/verification_docs/";
+                        if (!is_dir($upload_dir)) {
+                            mkdir($upload_dir, 0755, true);
+                        }
+
+                        // Unique filename so we never overwrite / leak other users' docs
+                        $unique_name = bin2hex(random_bytes(16)) . "." . $ext;
+                        $destination = $upload_dir . $unique_name;
+
+                        if (move_uploaded_file($file["tmp_name"], $destination)) {
+                            // Store the relative path (used to build a link in the admin dashboard)
+                            $doc_path = "uploads/verification_docs/" . $unique_name;
+                        } else {
+                            $error = "Could not save your document. Please try again.";
+                        }
+                    }
+                }
+            }
+
+            // ---- Create the account if no error occurred above ----
+            if (empty($error)) {
+                $password_hash = password_hash($password, PASSWORD_DEFAULT);
+
+                $result = pg_query_params($conn, 
+                    "INSERT INTO users (full_name, email, password_hash, role, location, verification_doc) 
+                     VALUES ($1, $2, $3, $4, $5, $6)",
+                    array($full_name, $email, $password_hash, $role, $location, $doc_path)
+                );
+
+                if ($result) {
+                    $success = "Account created successfully! Wait for admin approval before logging in.";
+                } else {
+                    $error = "Something went wrong. Please try again.";
+                }
             }
         }
     }
@@ -68,7 +117,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="alert alert-success"><?php echo $success; ?></div>
         <?php endif; ?>
 
-        <form method="POST" action="register.php">
+        <form method="POST" action="register.php" enctype="multipart/form-data">
             
             <div class="mb-3">
                 <label class="form-label">Full Name</label>
@@ -98,6 +147,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="mb-3">
                 <label class="form-label">Location</label>
                 <input type="text" name="location" class="form-control" placeholder="e.g. Westlands, Nairobi">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Supporting document <span class="text-muted">(optional)</span></label>
+                <input type="file" name="verification_doc" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                <div class="form-text">
+                    e.g. an ID, business permit, or NGO registration certificate — helps the admin verify your account faster. PDF, JPG or PNG, max 5MB.
+                </div>
             </div>
 
             <button type="submit" class="btn btn-success w-100">Register</button>

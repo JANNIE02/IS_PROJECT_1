@@ -530,7 +530,6 @@ $registerRider   = "register.php?role=rider";
           <option value="donor">Donor</option>
           <option value="recipient">Recipient</option>
           <option value="rider">Rider</option>
-          <option value="admin">Admin / staff</option>
         </select>
       </div>
       <div class="full">
