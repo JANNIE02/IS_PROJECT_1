@@ -332,6 +332,7 @@ function statusBadge($status) {
         <div class="header-actions">
             <span class="badge-role"><i class="fas fa-user-circle"></i> Rider</span>
             <span class="text-muted" style="font-size:0.85rem;">Welcome, <?php echo htmlspecialchars($_SESSION["user_name"]); ?></span>
+            <?php include 'profile.php'; ?>
             <a href="logout.php" class="btn btn-outline btn-sm"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </header>

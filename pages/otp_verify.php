@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'dbconnect.php'; // Ensure this uses your PDO $conn
+require_once '../config.php'; // Provides $conn as a pg_connect() resource
 
 if (!isset($_SESSION['temp_email'])) {
     header("Location: login.php");
@@ -14,16 +14,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $otp = trim($_POST['otp'] ?? '');
 
     // Fetch user and OTP details
-    $stmt = $conn->prepare("SELECT id, full_name, role, otp_code FROM users WHERE email = :email LIMIT 1");
-    $stmt->execute([':email' => $email]);
-    $u = $stmt->fetch();
+    $result = pg_query_params(
+        $conn,
+        "SELECT id, full_name, role, otp_code, otp_expiry FROM users WHERE email = $1 LIMIT 1",
+        array($email)
+    );
+    $u = pg_fetch_assoc($result);
 
-    if ($u && $u['otp_code'] == $otp) {
+    if (!$u) {
+        // Shouldn't normally happen since temp_email came from a valid login
+        $message = "Something went wrong. Please log in again.";
+        unset($_SESSION['temp_email']);
+    } elseif (empty($u['otp_code']) || $u['otp_code'] !== $otp) {
+        $message = "The code is incorrect. Please check your email.";
+    } elseif (!empty($u['otp_expiry']) && strtotime($u['otp_expiry']) < time()) {
+        $message = "This code has expired. Please request a new one.";
+    } else {
         // SUCCESS: The user is now officially "Activated"
-        
-        // 1. Update the database: Set verified to TRUE
-        $update = $conn->prepare("UPDATE users SET otp_verified = TRUE, otp_code = NULL WHERE id = :id");
-        $update->execute([':id' => $u['id']]);
+
+        // 1. Update the database: Set verified to TRUE, clear the OTP
+        pg_query_params(
+            $conn,
+            "UPDATE users SET otp_verified = TRUE, otp_code = NULL, otp_expiry = NULL WHERE id = $1",
+            array($u['id'])
+        );
 
         // 2. Set the Full Login Session
         $_SESSION['user_id']   = $u['id'];
@@ -37,9 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role = strtolower($u['role']);
         header("Location: " . $role . "-dashboard.php");
         exit();
-
-    } else {
-        $message = "The code is incorrect. Please check your email.";
     }
 }
 ?>
@@ -56,11 +67,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <div class="container d-flex justify-content-center align-items-center min-vh-100">
     <div class="card shadow p-4" style="width: 100%; max-width: 450px;">
-        
+
         <h3 class="text-center mb-4">OTP Verification</h3>
 
         <?php if ($message): ?>
-            <div class="alert alert-danger"><?php echo $message; ?></div>
+            <div class="alert alert-danger"><?php echo htmlspecialchars($message); ?></div>
         <?php endif; ?>
 
         <form method="POST" action="otp_verify.php">
@@ -70,10 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="text" name="otp" class="form-control" required>
             </div>
 
-            
-
-        <button type="submit" class="btn w-100" style="background-color: #06392f; color: white; border: none;">
-    Login
+            <button type="submit" class="btn w-100" style="background-color: #06392f; color: white; border: none;">
+                Login
+            </button>
 
             <p class="text-center mt-3">Didn't get OTP? <a href="resend_otp.php">Resend</a></p>
 

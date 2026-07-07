@@ -55,3 +55,20 @@ ALTER TABLE food_listings
     ADD COLUMN food_condition VARCHAR(50),
     ADD COLUMN urgency VARCHAR(10) DEFAULT 'medium' CHECK (urgency IN ('high', 'medium', 'low')),
     ADD COLUMN pickup_window VARCHAR(50);
+
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(150);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture VARCHAR(255);
+
+
+
+CREATE TABLE feedback (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(150),
+    role VARCHAR(20) NOT NULL DEFAULT 'visitor',
+    email VARCHAR(150),
+    message TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

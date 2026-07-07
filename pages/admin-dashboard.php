@@ -13,10 +13,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["user_id"])) {
     $user_id = $_POST["user_id"];
     $new_status = $_POST["new_status"];
 
+    // Get user's email and name before updating, so we can email them if approved
+    $user_lookup = pg_query_params($conn,
+        "SELECT full_name, email FROM users WHERE id = $1",
+        array($user_id)
+    );
+    $user_row = pg_fetch_assoc($user_lookup);
+
     pg_query_params($conn,
         "UPDATE users SET status = $1 WHERE id = $2",
         array($new_status, $user_id)
     );
+
+    // If they were just approved, send the approval email
+    if ($new_status === "approved" && $user_row) {
+        require_once 'mail.php'; // mail.php lives in the same pages/ folder
+        sendApprovalMail($user_row["email"], $user_row["full_name"]);
+    }
 }
 
 // Handle listing removal by admin
@@ -132,6 +145,13 @@ $trend_result = pg_query($conn,
      ORDER BY DATE_TRUNC('month', created_at) ASC"
 );
 $trend = pg_fetch_all($trend_result) ?: [];
+
+// Feedback submissions
+$feedback_result = pg_query($conn,
+    "SELECT id, name, role, email, message, created_at FROM feedback ORDER BY created_at DESC"
+);
+$feedback_rows = pg_fetch_all($feedback_result) ?: [];
+$total_feedback = count($feedback_rows);
 
 // Stats
 $total_users   = count($users);
@@ -375,6 +395,8 @@ function deliveryStatusBadge($s) {
         .role-tag.donor     { background: #dcfce7; color: #166534; }
         .role-tag.recipient { background: #dbeafe; color: #1e40af; }
         .role-tag.rider     { background: #fef9c3; color: #854d0e; }
+        .role-tag.admin     { background: #ede9fe; color: #5b21b6; }
+        .role-tag.visitor   { background: #e9edf2; color: #475569; }
 
         .action-group { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -489,6 +511,12 @@ function deliveryStatusBadge($s) {
         </button>
         <button class="tab-btn" onclick="switchTab('impact', this)">
             <i class="fas fa-chart-bar"></i> Impact analytics
+        </button>
+        <button class="tab-btn" onclick="switchTab('feedback', this)">
+            <i class="fas fa-comment-dots"></i> Feedback
+            <?php if ($total_feedback > 0): ?>
+                <span class="badge badge-grey" style="font-size:0.7rem; padding:2px 8px;"><?php echo $total_feedback; ?></span>
+            <?php endif; ?>
         </button>
     </div>
 
@@ -768,6 +796,42 @@ function deliveryStatusBadge($s) {
             Meal estimate based on 4 portions per kg. Kg equivalents used: 1 bag = 50kg, 1 box = 10kg, portions/pieces counted as 0.25kg each.
         </p>
 
+    </div>
+
+    <!-- TAB: Feedback -->
+    <div class="tab-panel" id="tab-feedback">
+        <?php if (count($feedback_rows) === 0): ?>
+            <div class="empty-state">
+                <i class="fas fa-comment-slash"></i>
+                <p>No feedback submitted yet.</p>
+            </div>
+        <?php else: ?>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th><th>Name</th><th>Role</th><th>Email</th><th>Message</th><th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($feedback_rows as $row): ?>
+                            <tr>
+                                <td class="text-muted" style="font-size:0.82rem;"><?php echo $row["id"]; ?></td>
+                                <td><strong><?php echo htmlspecialchars($row["name"] ?: '—'); ?></strong></td>
+                                <td>
+                                    <span class="role-tag <?php echo strtolower($row['role']); ?>">
+                                        <?php echo ucfirst($row["role"]); ?>
+                                    </span>
+                                </td>
+                                <td style="font-size:0.85rem;"><?php echo htmlspecialchars($row["email"] ?: '—'); ?></td>
+                                <td style="font-size:0.85rem; max-width:320px;"><?php echo nl2br(htmlspecialchars($row["message"])); ?></td>
+                                <td style="font-size:0.85rem;"><?php echo date("d M Y, H:i", strtotime($row["created_at"])); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
     </div>
 
 </div>
