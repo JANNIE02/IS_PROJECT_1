@@ -983,7 +983,6 @@ function parsePgArray($pgArray) {
 
         <p class="text-muted" style="font-size:0.8rem; margin-top:18px;">
             <i class="fas fa-info-circle"></i>
-            Meal estimate based on 4 portions per kg. Kg equivalents used: 1 bag = 50kg, 1 box = 10kg, pieces/portions/packs ≈ 0.25kg each.
             <?php if ($collected_without_delivery > 0): ?>
                 <br><i class="fas fa-circle-info"></i>
                 <?php echo $collected_without_delivery; ?> of the collected listings above were picked up directly and don't have a matching rider delivery record — that's why "Food rescued" and "Deliveries completed" won't match exactly.
