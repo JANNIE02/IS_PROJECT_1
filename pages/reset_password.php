@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'dbconnect.php';
+require_once '../config.php';
 require_once 'mail.php';
 
 $step = $_GET['step'] ?? 'request';
@@ -8,12 +8,12 @@ $message = '';
 
 if($step === 'request' && $_SERVER['REQUEST_METHOD'] === 'POST'){
     $email = trim($_POST['email']);
-    $stmt = $conn->prepare("SELECT id,full_name FROM users WHERE email=:e");
-    $stmt->execute([':e'=>$email]); $user = $stmt->fetch();
+    $result = pg_query_params($conn, "SELECT id, full_name FROM users WHERE email=$1", [$email]);
+    $user = pg_fetch_assoc($result);
     if(!$user){ $message="Email not found."; }
     else {
         $otp = rand(100000,999999);
-        $conn->prepare("UPDATE users SET otp_code=:otp WHERE id=:id")->execute([':otp'=>$otp,':id'=>$user['id']]);
+        pg_query_params($conn, "UPDATE users SET otp_code=$1 WHERE id=$2", [$otp, $user['id']]);
         sendOTPMail($email, $user['full_name'], $otp);
         header("Location: reset_password.php?step=verify&e=".urlencode($email)); exit;
     }
@@ -21,14 +21,14 @@ if($step === 'request' && $_SERVER['REQUEST_METHOD'] === 'POST'){
 
 if($step === 'verify' && $_SERVER['REQUEST_METHOD'] === 'POST'){
     $email = $_POST['email']; $otp = $_POST['otp'];
-    $stmt = $conn->prepare("SELECT id FROM users WHERE email=:e AND otp_code=:otp");
-    $stmt->execute([':e'=>$email,':otp'=>$otp]); $u = $stmt->fetch();
+    $result = pg_query_params($conn, "SELECT id FROM users WHERE email=$1 AND otp_code=$2", [$email, $otp]);
+    $u = pg_fetch_assoc($result);
     if($u) { header("Location: reset_password.php?step=reset&e=".urlencode($email)); exit; } else $message = "Invalid OTP";
 }
 
 if($step === 'reset' && $_SERVER['REQUEST_METHOD'] === 'POST'){
     $email = $_POST['email']; $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $conn->prepare("UPDATE users SET password_hash=:p, otp_code=NULL WHERE email=:e")->execute([':p'=>$pass,':e'=>$email]);
+    pg_query_params($conn, "UPDATE users SET password_hash=$1, otp_code=NULL WHERE email=$2", [$pass, $email]);
     echo "<script>alert('Password reset. You can login.'); window.location='login.php';</script>"; exit;
 }
 ?>

@@ -113,73 +113,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Food Connect</title>
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../assets/css/main.css">
 </head>
-
 <body class="bg-light">
 
 <div class="container d-flex justify-content-center align-items-center min-vh-100">
-
-    <div class="card shadow p-4" style="width:100%;max-width:450px;">
-
-        <h3 class="text-center mb-4">
-            Login
-        </h3>
+    <div class="card shadow p-4" style="width: 100%; max-width: 450px;">
+        
+        <h3 class="text-center mb-4">Login</h3>
 
         <?php if ($error): ?>
-            <div class="alert alert-danger">
-                <?php echo htmlspecialchars($error); ?>
-            </div>
+            <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
         <form method="POST" action="login.php">
-
             <div class="mb-3">
-                <label class="form-label">
-                    Email Address
-                </label>
-
-                <input
-                    type="email"
-                    name="email"
-                    class="form-control"
-                    required
-                    value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" class="form-control" required value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
             </div>
 
             <div class="mb-3">
-                <label class="form-label">
-                    Password
-                </label>
-
-                <input
-                    type="password"
-                    name="password"
-                    class="form-control"
-                    required>
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" required>
             </div>
 
-            <button
-                type="submit"
-                class="btn w-100"
-                style="background-color:#06392f;color:white;border:none;">
-                Login
-            </button>
-
-            <p class="text-center mt-3">
-                Don't have an account?
-                <a href="register.php">Register here</a>
-            </p>
-
+            
+            <button type="submit" class="btn w-100" style="background-color: #06392f; color: white; border: none;">
+    Login
+</button>
+            <p class="text-center mt-3">Don't have an account? <a href="register.php" style="color: #004741; text-decoration: none; font-weight: 600;">Register here</a></p>
+            <div class="note" style="text-align: center; margin-top: 7px;">
+    <a href="reset_password.php" style="color: #004741; text-decoration: none; font-weight: 600;">Forgot password?</a>
+</div>
+             
         </form>
-
     </div>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
 </html>

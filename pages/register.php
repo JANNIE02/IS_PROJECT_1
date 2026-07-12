@@ -100,7 +100,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register | Food Redistribution System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="../assets/css/main.css">
 </head>
 <body class="bg-light">
 
@@ -153,13 +153,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <label class="form-label">Supporting document <span class="text-muted">(optional)</span></label>
                 <input type="file" name="verification_doc" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
                 <div class="form-text">
-                    e.g. an ID, business permit, or NGO registration certificate — helps the admin verify your account faster. PDF, JPG or PNG, max 5MB.
+                    e.g. an ID, business permit, or NGO registration certificate  helps the admin verify your account faster. PDF, JPG or PNG, max 5MB.
                 </div>
             </div>
 
-            <button type="submit" class="btn btn-success w-100">Register</button>
-            
-            <p class="text-center mt-3">Already have an account? <a href="login.php">Login here</a></p>
+            <button type="submit" class="btn w-100" style="background-color: #06392f; color: white; border: none;">
+                Register
+            </button>
+
+            <p class="text-center mt-3">Already have an account? <a href="login.php" style="color: #004741; text-decoration: none; font-weight: 600;">Login here</a></p>
 
         </form>
     </div>

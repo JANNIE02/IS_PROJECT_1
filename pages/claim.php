@@ -1,5 +1,6 @@
 <?php
 include '../config.php';
+include 'mail.php';
 session_start();
 
 // Protect page - only recipients can access
@@ -13,7 +14,7 @@ $listing_id = $_GET["listing_id"];
 
 // Get the food listing details
 $result = pg_query_params($conn,
-    "SELECT food_listings.*, users.full_name AS donor_name, users.location AS donor_location
+    "SELECT food_listings.*, users.full_name AS donor_name, users.location AS donor_location ,users.email AS donor_email
      FROM food_listings
      JOIN users ON food_listings.donor_id = users.id
      WHERE food_listings.id = $1 AND food_listings.status = 'available'",
@@ -60,11 +61,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($claim) {
         $success = "You have successfully claimed this listing! The donor will be notified.";
+        sendClaimMail($listing["donor_email"], $listing["donor_name"], $listing["food_name"], $pickup_date);
     } else {
         $error = "Something went wrong: " . pg_last_error($conn);
     }
 }
-
 function conditionLabel($c) {
     return ucfirst(str_replace('_', ' ', $c ?? ''));
 }

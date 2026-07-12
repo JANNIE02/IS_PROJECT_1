@@ -438,7 +438,7 @@ $registerRider   = "register.php?role=rider";
     <div>
       <span class="hero-eyebrow">Nairobi · Food redistribution network</span>
       <h1>Surplus food finds a plate <em>before</em> it finds a bin.</h1>
-      <p class="lede">Food Connect links farms, markets, and retailers with recipients and volunteer riders across Nairobi — so good food that would go to waste gets collected, matched, and delivered the same day.</p>
+      <p class="lede">Food Connect links farms, markets, and retailers with recipients and volunteer riders across Nairobi so good food that would go to waste gets collected, matched, and delivered the same day.</p>
       <div class="hero-actions">
         <a href="<?= htmlspecialchars($registerUrl) ?>" class="btn btn-primary">Register as a donor</a>
         <a href="#roles" class="btn btn-ghost">See all roles</a>
@@ -466,7 +466,7 @@ $registerRider   = "register.php?role=rider";
       </div>
       <div class="role-card">
         <h3>Rider</h3>
-        <p>Volunteers who collect listings and deliver them — pick your own pickups from the pool.</p>
+        <p>Volunteers who collect listings and deliver them  pick your own pickups from the pool.</p>
         <a href="<?= htmlspecialchars($registerRider) ?>" class="btn">Register as rider</a>
       </div>
     </div>
@@ -482,7 +482,7 @@ $registerRider   = "register.php?role=rider";
     <div class="faq-list">
       <details open>
         <summary>Do I need to share my location to sign up?</summary>
-        <p>No. Location is optional at registration — you can add it later from your profile once you're ready to start listing or receiving donations.</p>
+        <p>No. Location is optional at registration  you can add it later from your profile once you're ready to start listing or receiving donations.</p>
       </details>
       <details>
         <summary>Which cities is Food Connect available in?</summary>
@@ -490,15 +490,12 @@ $registerRider   = "register.php?role=rider";
       </details>
       <details>
         <summary>Can I have more than one role on the same account?</summary>
-        <p>Yes. One email address can be linked to multiple roles — for example, a market trader who also volunteers as a rider.</p>
+        <p>Yes. One email address can be linked to multiple roles  for example, a market trader who also volunteers as a rider.</p>
       </details>
-      <details>
-        <summary>What happens if a listing doesn't get collected?</summary>
-        <p>Open listings stay visible to nearby riders in the collection zone. Admins can also reassign or flag listings that sit unclaimed for too long.</p>
-      </details>
+
       <details>
         <summary>How do you verify donors and recipients?</summary>
-        <p>Registration includes a document upload step for verification, and admins can review flagged accounts reported by staff or other users.</p>
+        <p>Registration includes a document upload step for verification, and admins can review to approve accounts.</p>
       </details>
     </div>
   </div>
@@ -510,13 +507,13 @@ $registerRider   = "register.php?role=rider";
     <?php if ($feedbackStatus === 'success'): ?>
       <div class="feedback-banner success">✓ Thanks — your feedback was sent.</div>
     <?php elseif ($feedbackStatus === 'error'): ?>
-      <div class="feedback-banner error">⚠ Something went wrong — please make sure the message field isn't empty and try again.</div>
+      <div class="feedback-banner error">⚠ Something went wrong  please make sure the message field isn't empty and try again.</div>
     <?php endif; ?>
 
     <div class="section-head">
       <span class="section-eyebrow">Tell us</span>
       <h2>Feedback helps us fix things faster</h2>
-      <p>Spotted a bug, a confusing step, or something missing? Let us know — this goes straight to the team.</p>
+      <p>Spotted a bug, a confusing step, or something missing? Let us know  this goes straight to the team.</p>
     </div>
     <form class="feedback-form" method="POST" action="#feedback">
       <div>
@@ -544,7 +541,7 @@ $registerRider   = "register.php?role=rider";
         <button type="submit" class="btn">Send feedback</button>
       </div>
     </form>
-    <p class="feedback-note">Feedback is saved straight to the database — check the admin dashboard's Feedback tab to view submissions.</p>
+    <p class="feedback-note">Feedback is saved straight to the database  check the admin dashboard's Feedback tab to view submissions.</p>
   </div>
 </section>
 
@@ -563,14 +560,14 @@ $registerRider   = "register.php?role=rider";
       </div>
       <div>
         <h4>Coverage</h4>
-        <a href="#">Nairobi — live</a>
-        <a href="#">More cities — coming soon</a>
+        <a href="#">Nairobi  live</a>
+        <a href="#">More cities are coming soon</a>
         <a href="#feedback">Report an issue</a>
       </div>
     </div>
     <div class="footer-bottom">
-      <span>© <?= date("Y") ?> Food Connect. Built for SDG 2 &amp; SDG 12.</span>
-      <span>IS_PROJECT_1</span>
+      <span>© <?= date("Y") ?></span>
+  
     </div>
   </div>
 </footer>

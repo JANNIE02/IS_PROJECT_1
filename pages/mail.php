@@ -82,3 +82,41 @@ if (!function_exists('sendApprovalMail')) {
         }
     }
 }
+
+if (!function_exists('sendClaimMail')) {
+
+    function sendClaimMail($email, $donorName, $foodName, $pickupDate) {
+
+        $mailUsername = 'sherlymosoti@gmail.com';
+        $mailPassword = 'celpdrnqvonhlcvl';
+
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->SMTPDebug = 0;
+            $mail->Host       = 'smtp.gmail.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'sherlymosoti@gmail.com';
+            $mail->Password   = 'celpdrnqvonhlcvl';
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
+
+            $mail->setFrom($mailUsername, 'Food Connect');
+            $mail->addAddress($email, $donorName);
+
+            $mail->isHTML(true);
+            $mail->Subject = 'Food Connect — Your listing has been claimed';
+            $mail->Body    = "<p>Hello <strong>".htmlspecialchars($donorName)."</strong>,</p>
+                              <p>Good news! Your listing <strong>".htmlspecialchars($foodName)."</strong> has just been claimed by a recipient.</p>
+                              <p><strong>Requested pickup date:</strong> ".htmlspecialchars($pickupDate)."</p>
+                              <p>Please prepare the item and take it to your assigned Food Connect drop-off zone so a rider can collect and deliver it. Check your dashboard for the exact zone and rider details.</p>
+                              <p>Thank you for helping reduce food waste!</p>";
+
+            $mail->send();
+            return true;
+        } catch (Exception $e) {
+            error_log("Claim Mailer Error: " . $mail->ErrorInfo);
+            return false;
+        }
+    }
+}
